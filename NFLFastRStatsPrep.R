@@ -24,7 +24,8 @@ nfl_pbp_2020 <-
   pull(game_id) %>%
   nflfastR::build_nflfastR_pbp(pp = TRUE)
 
-nfl_stats_2020 <- 
+
+nfl_stats_2020  <- 
   nfl_pbp_2020 %>%
   ### For Stat Tracking, the end runner of the lateral gets the receiving yards.
   mutate(
@@ -43,7 +44,8 @@ nfl_stats_2020 <-
     game_date,
     game_id,
     yardline_100,
-    posteam,
+    team = posteam,
+    defteam,
     play_type,
     play_type_nfl,
     passer,
@@ -105,7 +107,7 @@ nfl_stats_2020 <-
     cols = c("rusher_player_id", "passer_player_id", "receiver_player_id", "kicker_player_id"),
     names_to = "player_type",
     values_to = "player_id"
-  ) %>%
+  ) %>% 
   mutate(
     player_type = str_remove(
       player_type,
@@ -114,7 +116,7 @@ nfl_stats_2020 <-
   ) %>%
   filter(
     !is.na(player_id)
-  ) %>%
+  ) %>% 
   # not accounting for returns as of now
   mutate(
     player_name =
@@ -184,6 +186,10 @@ nfl_stats_2020 <-
       player_type == "passer" & complete_pass == 1 ~ 1,
       TRUE ~ 0
     ),
+    pass_interception = case_when(
+      player_type == "passer" & pass_interception == 1 ~ 1, 
+      TRUE ~0
+    ),
     pass_incomplete = case_when(
       player_type == "passer" & complete_pass == 0 ~ 1,
       TRUE ~ 0
@@ -227,7 +233,8 @@ nfl_stats_2020 <-
     play_id,
     game_date,
     game_id,
-    team = posteam,
+    team,
+    defteam,
     play_type,
     player_type,
     player_name,
@@ -272,13 +279,14 @@ nfl_stats_2020 <-
     field_goal_result,
     ep,
     epa
-  ) %>%
+  ) %>% 
   group_by(
     season,
     week,
     game_id,
     game_date,
     team,
+    defteam,
     player_id,
     player_name
   ) %>%
@@ -327,7 +335,7 @@ nfl_stats_2020 <-
     rec_two_pt_success = sum(receiver_two_pt_success),
     rec_two_pt_att = sum(receiver_two_pt_att),
     rec_adot = sum(receiver_air_yards) / sum(receiver_target)
-  ) %>% 
+  ) %>%
   mutate(DKPassing =
            (pass_td * 4) + 
            if_else(pass_yards >= 300, 3, 0) +
@@ -347,6 +355,8 @@ nfl_stats_2020 <-
   group_by(season,
            week,
            game_id,
+           team,
+           defteam,
            game_date) %>% 
   mutate(team_targets = sum(rec_targ),
          team_airyards = sum(rec_airyards),
@@ -379,6 +389,9 @@ nfl_stats_2020 <-
 ## Thielen in week 1 or so has a player name of NA on a 2pt
 
 saveRDS(nfl_stats_2020, file = "nfl_stats_2020.rds")
+
+
+
 
 espn_qbr_2020 <- 
   nfl_stats_2020 %>% 
